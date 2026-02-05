@@ -3,7 +3,9 @@ import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:signals/signals.dart';
 
+import '../../models/note_models.dart';
 import '../../services/vault_controller.dart';
 import 'home_screen_state.dart';
 
@@ -17,25 +19,26 @@ mixin HomeScreenLogicMixin<T extends StatefulWidget> on State<T> {
   TextEditingController get searchController;
 
   Timer? _saveTimer;
+  EffectCleanup? _currentEffect;
 
   /// 初始化业务逻辑
   void initLogic() {
-    controller.addListener(_onControllerChanged);
+    // 使用 effect 监听 current signal 变化
+    _currentEffect = effect(() {
+      final current = controller.currentSignal.value;
+      _onCurrentChanged(current);
+    });
   }
 
   /// 清理业务逻辑资源
   void disposeLogic() {
     controller.disposeController();
-    controller.removeListener(_onControllerChanged);
+    _currentEffect?.call();
     _saveTimer?.cancel();
   }
 
-  /// 监听 VaultController 变化
-  void _onControllerChanged() {
-    // 递增版本号以触发 Watch 重建
-    stateManager.controllerVersion.value++;
-
-    final current = controller.current;
+  /// 当前笔记变化时更新编辑器
+  void _onCurrentChanged(NoteDocument? current) {
     if (current == null) {
       stateManager.currentId.value = null;
       titleController.text = '';

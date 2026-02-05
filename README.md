@@ -1,4 +1,8 @@
-﻿# AI Notes Desktop
+---
+id: 9b8d4f26-8a68-4574-9056-a938202519b3
+title: AI Notes Desktop
+---
+# AI Notes Desktop
 
 AI Notes Desktop 是一个面向桌面端的本地优先 Markdown 笔记应用。它以“文件夹即笔记库（vault）”为核心思路，在保持纯文本可迁移性的同时，提供结构化前言（YAML frontmatter）、显式关系与知识图谱、全文检索，以及面向 AI 的索引导出能力。
 
@@ -161,3 +165,16 @@ AI Notes Desktop 是一个面向桌面端的本地优先 Markdown 笔记应用�
 在应用顶部工具栏：
 - 点击 **调色板图标** 选择配色方案
 - 点击 **亮度图标** 循环切换主题模式
+
+## 状态管理
+
+应用使用 [signals](https://pub.dev/packages/signals) 进行响应式状态管理：
+
+- **VaultController**：管理笔记库核心状态（当前笔记、笔记列表、链接关系等），所有状态均为 Signal
+- **HomeScreenStateManager**：管理 UI 状态（面板可见性、面板宽度等）
+- **ThemeController**：管理主题状态（主题模式、配色方案）
+
+这种架构确保了：
+- 细粒度的 UI 更新，只有依赖的状态变化时才重建
+- 状态变化自动触发 UI 更新，无需手动调用 setState
+- 清晰的状态分离，业务逻辑与 UI 状态解耦

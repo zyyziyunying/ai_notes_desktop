@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:signals/signals.dart';
 import 'package:uuid/uuid.dart';
 import 'package:watcher/watcher.dart';
 
@@ -14,7 +14,7 @@ import 'link_resolver.dart';
 import 'note_parser.dart';
 import 'relation_type_service.dart';
 
-class VaultController extends ChangeNotifier {
+class VaultController {
   VaultController({
     NoteParser? parser,
     IndexService? indexService,
@@ -29,34 +29,46 @@ class VaultController extends ChangeNotifier {
   final Uuid _uuid = const Uuid();
   final RelationTypeService _relationTypeService = RelationTypeService();
 
-  Directory? _vaultDir;
-  String _status = '未选择笔记库';
-  List<NoteDocument> _documents = [];
-  List<NoteMeta> _notes = [];
-  List<NoteMeta> _filteredNotes = [];
-  List<NoteLink> _links = [];
-  Map<String, List<NoteLink>> _backlinks = {};
-  NoteDocument? _current;
-  List<String> _relationTypes = List<String>.from(
-    RelationTypeService.defaultTypes,
+  // Signals for reactive state
+  final Signal<Directory?> _vaultDir = signal(null);
+  final Signal<String> _status = signal('未选择笔记库');
+  final Signal<List<NoteDocument>> _documents = signal([]);
+  final Signal<List<NoteMeta>> _notes = signal([]);
+  final Signal<List<NoteMeta>> _filteredNotes = signal([]);
+  final Signal<List<NoteLink>> _links = signal([]);
+  final Signal<Map<String, List<NoteLink>>> _backlinks = signal({});
+  final Signal<NoteDocument?> _current = signal(null);
+  final Signal<List<String>> _relationTypes = signal(
+    List<String>.from(RelationTypeService.defaultTypes),
   );
+  final Signal<String> _searchQuery = signal('');
+
   StreamSubscription<WatchEvent>? _watcher;
   Timer? _watchDebounce;
   Timer? _indexDebounce;
   int _searchToken = 0;
-  String _searchQuery = '';
 
-  Directory? get vaultDir => _vaultDir;
-  String get status => _status;
-  List<NoteMeta> get notes => _filteredNotes;
-  List<NoteMeta> get allNotes => _notes;
-  NoteDocument? get current => _current;
-  String get searchQuery => _searchQuery;
-  List<NoteLink> get links => _links;
-  List<String> get relationTypes => List<String>.unmodifiable(_relationTypes);
+  // Public getters - return signal values
+  Directory? get vaultDir => _vaultDir.value;
+  String get status => _status.value;
+  List<NoteMeta> get notes => _filteredNotes.value;
+  List<NoteMeta> get allNotes => _notes.value;
+  NoteDocument? get current => _current.value;
+  String get searchQuery => _searchQuery.value;
+  List<NoteLink> get links => _links.value;
+  List<String> get relationTypes => List<String>.unmodifiable(_relationTypes.value);
+
+  // Expose signals for Watch widget
+  Signal<Directory?> get vaultDirSignal => _vaultDir;
+  Signal<String> get statusSignal => _status;
+  Signal<List<NoteMeta>> get notesSignal => _filteredNotes;
+  Signal<List<NoteMeta>> get allNotesSignal => _notes;
+  Signal<NoteDocument?> get currentSignal => _current;
+  Signal<List<NoteLink>> get linksSignal => _links;
+  Signal<List<String>> get relationTypesSignal => _relationTypes;
 
   NoteMeta? noteById(String id) {
-    for (final note in _notes) {
+    for (final note in _notes.value) {
       if (note.id == id) {
         return note;
       }
@@ -65,29 +77,28 @@ class VaultController extends ChangeNotifier {
   }
 
   List<NoteLink> outgoingLinksFor(String noteId) {
-    return _links.where((link) => link.fromId == noteId).toList();
+    return _links.value.where((link) => link.fromId == noteId).toList();
   }
 
   List<NoteLink> incomingLinksFor(String noteId) {
-    return _backlinks[noteId] ?? const [];
+    return _backlinks.value[noteId] ?? const [];
   }
 
   Future<void> openVault(Directory dir) async {
-    _vaultDir = dir;
-    _status = '正在打开笔记库...';
-    notifyListeners();
+    _vaultDir.value = dir;
+    _status.value = '正在打开笔记库...';
 
     final indexPath = await _resolveIndexPath(dir);
     _indexService.dispose();
     _indexService.open(indexPath);
 
-    _relationTypes = await _relationTypeService.loadTypes(dir);
+    _relationTypes.value = await _relationTypeService.loadTypes(dir);
     await _indexAll();
     _watchVault(dir);
   }
 
   Future<void> createNote() async {
-    final vault = _vaultDir;
+    final vault = _vaultDir.value;
     if (vault == null) {
       return;
     }
@@ -104,9 +115,8 @@ class VaultController extends ChangeNotifier {
     await _indexAll(selectPath: filePath);
   }
 
-  Future<void> saveCurrent(
-      {required String body, required String title}) async {
-    final current = _current;
+  Future<void> saveCurrent({required String body, required String title}) async {
+    final current = _current.value;
     if (current == null) {
       return;
     }
@@ -118,7 +128,7 @@ class VaultController extends ChangeNotifier {
   }
 
   Future<void> updateFrontmatterLinks(List<FrontmatterLink> links) async {
-    final current = _current;
+    final current = _current.value;
     if (current == null) {
       return;
     }
@@ -141,7 +151,7 @@ class VaultController extends ChangeNotifier {
   }
 
   Future<void> updateRelationTypes(List<String> types) async {
-    final vault = _vaultDir;
+    final vault = _vaultDir.value;
     if (vault == null) {
       return;
     }
@@ -150,79 +160,71 @@ class VaultController extends ChangeNotifier {
         .where((type) => type.isNotEmpty)
         .toSet()
         .toList();
-    _relationTypes = cleaned.isEmpty
+    _relationTypes.value = cleaned.isEmpty
         ? List<String>.from(RelationTypeService.defaultTypes)
         : cleaned;
-    await _relationTypeService.saveTypes(vault, _relationTypes);
-    notifyListeners();
+    await _relationTypeService.saveTypes(vault, _relationTypes.value);
   }
 
   void selectNoteById(String id) {
-    if (_documents.isEmpty) {
+    if (_documents.value.isEmpty) {
       return;
     }
-    final doc = _documents.firstWhere(
+    final doc = _documents.value.firstWhere(
       (item) => item.meta.id == id,
-      orElse: () => _current ?? _documents.first,
+      orElse: () => _current.value ?? _documents.value.first,
     );
-    _current = doc;
-    notifyListeners();
+    _current.value = doc;
   }
 
   void selectNoteByTarget(String target) {
-    if (_documents.isEmpty) {
+    if (_documents.value.isEmpty) {
       return;
     }
     final trimmed = target.trim();
     final base = trimmed.split('#').first.trim();
     final normalized = base.toLowerCase();
     final idCandidate = base.startsWith('id:') ? base.substring(3) : base;
-    final doc = _documents.firstWhere(
+    final doc = _documents.value.firstWhere(
       (item) =>
           item.meta.id == idCandidate ||
           item.meta.title.toLowerCase() == normalized ||
-          p.basenameWithoutExtension(item.meta.path).toLowerCase() ==
-              normalized,
-      orElse: () => _current ?? _documents.first,
+          p.basenameWithoutExtension(item.meta.path).toLowerCase() == normalized,
+      orElse: () => _current.value ?? _documents.value.first,
     );
-    _current = doc;
-    notifyListeners();
+    _current.value = doc;
   }
 
   Future<void> updateSearchQuery(String query) async {
-    _searchQuery = query;
+    _searchQuery.value = query;
     final token = ++_searchToken;
     if (query.trim().isEmpty) {
-      _filteredNotes = List.of(_notes);
-      notifyListeners();
+      _filteredNotes.value = List.of(_notes.value);
       return;
     }
     final ids = await Future(() => _indexService.searchNoteIds(query));
     if (token != _searchToken) {
       return;
     }
-    if (_notes.isEmpty) {
-      _filteredNotes = [];
-      notifyListeners();
+    if (_notes.value.isEmpty) {
+      _filteredNotes.value = [];
       return;
     }
-    _filteredNotes = ids
-        .map((id) => _notes.firstWhere(
+    _filteredNotes.value = ids
+        .map((id) => _notes.value.firstWhere(
               (note) => note.id == id,
-              orElse: () => _notes.first,
+              orElse: () => _notes.value.first,
             ))
         .toList();
-    notifyListeners();
   }
 
   Future<void> exportAI() async {
-    final vault = _vaultDir;
+    final vault = _vaultDir.value;
     if (vault == null) {
       return;
     }
-    await _exportService.exportVault(vault, _documents, _links);
-    _status = 'AI 索引已导出';
-    notifyListeners();
+    await _exportService.exportVault(vault, _documents.value, _links.value);
+    _status.value = 'AI 索引已导出';
   }
 
   void disposeController() {
@@ -233,12 +235,11 @@ class VaultController extends ChangeNotifier {
   }
 
   Future<void> _indexAll({String? selectPath}) async {
-    final vault = _vaultDir;
+    final vault = _vaultDir.value;
     if (vault == null) {
       return;
     }
-    _status = '正在索引笔记...';
-    notifyListeners();
+    _status.value = '正在索引笔记...';
 
     final files = await _scanMarkdownFiles(vault);
     final docs = <NoteDocument>[];
@@ -302,13 +303,13 @@ class VaultController extends ChangeNotifier {
       backlinks.putIfAbsent(link.toId, () => []).add(link);
     }
 
-    _documents = docs;
-    _notes = docs.map((doc) => doc.meta).toList();
-    if (_searchQuery.trim().isEmpty) {
-      _filteredNotes = List.of(_notes);
+    _documents.value = docs;
+    _notes.value = docs.map((doc) => doc.meta).toList();
+    if (_searchQuery.value.trim().isEmpty) {
+      _filteredNotes.value = List.of(_notes.value);
     }
-    _links = links;
-    _backlinks = backlinks;
+    _links.value = links;
+    _backlinks.value = backlinks;
 
     _indexService.replaceNotes(docs);
     _indexService.replaceLinks(links);
@@ -320,26 +321,25 @@ class VaultController extends ChangeNotifier {
           (doc) => doc.meta.path == selectPath,
           orElse: () => docs.first,
         );
-        _current = selected;
-      } else if (_current == null ||
-          !docs.any((doc) => doc.meta.id == _current!.meta.id)) {
-        _current = docs.first;
+        _current.value = selected;
+      } else if (_current.value == null ||
+          !docs.any((doc) => doc.meta.id == _current.value!.meta.id)) {
+        _current.value = docs.first;
       } else {
-        _current = docs.firstWhere(
-          (doc) => doc.meta.id == _current!.meta.id,
+        _current.value = docs.firstWhere(
+          (doc) => doc.meta.id == _current.value!.meta.id,
           orElse: () => docs.first,
         );
       }
     } else {
-      _current = null;
+      _current.value = null;
     }
 
-    if (_searchQuery.trim().isNotEmpty) {
-      await updateSearchQuery(_searchQuery);
+    if (_searchQuery.value.trim().isNotEmpty) {
+      await updateSearchQuery(_searchQuery.value);
     }
 
-    _status = '索引完成：${docs.length} 条笔记';
-    notifyListeners();
+    _status.value = '索引完成：${docs.length} 条笔记';
   }
 
   void _watchVault(Directory dir) {
@@ -415,11 +415,11 @@ class VaultController extends ChangeNotifier {
 
   String _suggestNewTitle() {
     final base = 'New Note';
-    if (_notes.every((note) => note.title != base)) {
+    if (_notes.value.every((note) => note.title != base)) {
       return base;
     }
     var counter = 2;
-    while (_notes.any((note) => note.title == '$base $counter')) {
+    while (_notes.value.any((note) => note.title == '$base $counter')) {
       counter++;
     }
     return '$base $counter';

@@ -5,9 +5,6 @@ class HomeScreenStateManager {
   // 当前选中的笔记 ID
   final Signal<String?> currentId = signal(null);
 
-  // 用于触发 UI 重建的版本号（当 VaultController 变化时递增）
-  final Signal<int> controllerVersion = signal(0);
-
   // 面板可见性状态
   final Signal<bool> showNotesPanel = signal(true);
   final Signal<bool> showEditorPanel = signal(true);

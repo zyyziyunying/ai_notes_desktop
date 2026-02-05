@@ -54,12 +54,15 @@ class _HomeScreenState extends State<HomeScreen>
   @override
   Widget build(BuildContext context) {
     return Watch((context) {
-      final current = controller.current;
+      // 访问 signals 以触发 Watch 重建
+      final current = controller.currentSignal.value;
+      final vaultDir = controller.vaultDirSignal.value;
+      final status = controller.statusSignal.value;
       return DefaultTabController(
         length: 3,
         child: Scaffold(
           appBar: HomeAppBar(
-            vaultDir: controller.vaultDir,
+            vaultDir: vaultDir,
             onSelectVault: selectVault,
             onOpenTypesDialog: openTypesDialog,
             onCreateNote: controller.createNote,
@@ -83,7 +86,7 @@ class _HomeScreenState extends State<HomeScreen>
             onTapLink: handleNoteLink,
             onEditLinks: () => openLinkEditor(current!),
           ),
-          bottomNavigationBar: StatusBar(status: controller.status),
+          bottomNavigationBar: StatusBar(status: status),
         ),
       );
     });
