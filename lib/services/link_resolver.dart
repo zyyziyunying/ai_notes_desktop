@@ -1,4 +1,4 @@
-﻿import '../models/note_models.dart';
+import '../models/note_models.dart';
 
 class LinkResolver {
   static final RegExp _wikiLink = RegExp(r'\[\[([^\[\]]+)\]\]');
@@ -17,7 +17,7 @@ class LinkResolver {
     Map<String, String> titleToId,
     Map<String, String> pathToId,
   ) {
-    final trimmed = raw.trim();
+    final trimmed = _stripAnchor(raw).trim();
     if (trimmed.isEmpty) {
       return null;
     }
@@ -32,6 +32,30 @@ class LinkResolver {
       return pathToId[normalized];
     }
     return null;
+  }
+
+  static String? extractAnchor(String raw) {
+    final trimmed = raw.trim();
+    final index = trimmed.indexOf('#');
+    if (index == -1 || index == trimmed.length - 1) {
+      return null;
+    }
+    var anchor = trimmed.substring(index + 1).trim();
+    if (anchor.isEmpty) {
+      return null;
+    }
+    if (!anchor.startsWith('^')) {
+      anchor = '^$anchor';
+    }
+    return anchor;
+  }
+
+  static String _stripAnchor(String raw) {
+    final index = raw.indexOf('#');
+    if (index == -1) {
+      return raw;
+    }
+    return raw.substring(0, index);
   }
 
   static List<FrontmatterLink> extractFrontmatterLinks(

@@ -47,10 +47,16 @@ class LinksPanel extends StatelessWidget {
             child: Text('暂无 Frontmatter 关系'),
           ),
         ...frontmatterLinks.map((link) {
+          final blockInfo = _formatBlockInfo(
+            fromBlock: link.fromBlock,
+            toBlock: link.toBlock,
+          );
           return ListTile(
             dense: true,
             title: Text(link.to),
-            subtitle: Text(link.type),
+            subtitle: Text(
+              blockInfo.isEmpty ? link.type : '${link.type} | $blockInfo',
+            ),
           );
         }),
         const Divider(height: 24),
@@ -60,10 +66,15 @@ class LinksPanel extends StatelessWidget {
         if (outgoing.isEmpty) const Text('暂无出链'),
         ...outgoing.map((link) {
           final target = noteById(link.toId);
+          final blockInfo = _formatBlockInfo(toBlock: link.toBlock);
           return ListTile(
             dense: true,
             title: Text(target?.title ?? link.rawTarget),
-            subtitle: Text('${link.type} · ${link.source}'),
+            subtitle: Text(
+              blockInfo.isEmpty
+                  ? '${link.type} | ${link.source}'
+                  : '${link.type} | ${link.source} | $blockInfo',
+            ),
             onTap: target == null ? null : () => onSelectNote(link.toId),
           );
         }),
@@ -74,14 +85,30 @@ class LinksPanel extends StatelessWidget {
         if (incoming.isEmpty) const Text('暂无入链'),
         ...incoming.map((link) {
           final source = noteById(link.fromId);
+          final blockInfo = _formatBlockInfo(fromBlock: link.fromBlock);
           return ListTile(
             dense: true,
             title: Text(source?.title ?? link.rawTarget),
-            subtitle: Text('${link.type} · ${link.source}'),
+            subtitle: Text(
+              blockInfo.isEmpty
+                  ? '${link.type} | ${link.source}'
+                  : '${link.type} | ${link.source} | $blockInfo',
+            ),
             onTap: source == null ? null : () => onSelectNote(link.fromId),
           );
         }),
       ],
     );
+  }
+
+  String _formatBlockInfo({String? fromBlock, String? toBlock}) {
+    final parts = <String>[];
+    if (fromBlock != null && fromBlock.trim().isNotEmpty) {
+      parts.add('from $fromBlock');
+    }
+    if (toBlock != null && toBlock.trim().isNotEmpty) {
+      parts.add('to $toBlock');
+    }
+    return parts.join(' ');
   }
 }

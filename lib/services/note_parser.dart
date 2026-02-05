@@ -1,5 +1,6 @@
-﻿import 'dart:io';
+import 'dart:io';
 
+import 'package:collection/collection.dart';
 import 'package:path/path.dart' as p;
 import 'package:uuid/uuid.dart';
 import 'package:yaml/yaml.dart';
@@ -29,6 +30,19 @@ class NoteParser {
     final frontmatter = parsed.frontmatter;
     final body = parsed.body;
     var didUpdateFile = false;
+
+    final embeddedLinks = _extractEmbeddedLinks(body);
+    if (embeddedLinks.hasBlock) {
+      final normalizedEmbedded =
+          _normalizeLinksForFrontmatter(embeddedLinks.links);
+      final normalizedExisting =
+          _normalizeLinksForFrontmatter(_extractFrontmatterLinks(frontmatter));
+      if (!const DeepCollectionEquality()
+          .equals(normalizedEmbedded, normalizedExisting)) {
+        frontmatter['links'] = normalizedEmbedded;
+        didUpdateFile = true;
+      }
+    }
 
     final String id = _ensureId(frontmatter, () {
       didUpdateFile = true;
@@ -173,27 +187,278 @@ class NoteParser {
     Map<String, dynamic> map,
   ) {
     final links = map['links'];
-    if (links is List) {
+    if (links == null) {
+      return <FrontmatterLink>[];
+    }
+    return _frontmatterLinksFromDynamic(links);
+  }
+
+  _EmbeddedLinksResult _extractEmbeddedLinks(String body) {
+    final blocks = _extractLinkBlocks(body);
+    if (blocks.isEmpty) {
+      return const _EmbeddedLinksResult(hasBlock: false, links: []);
+    }
+    final links = <FrontmatterLink>[];
+    for (final block in blocks) {
+      links.addAll(_parseLinksYaml(block));
+    }
+    return _EmbeddedLinksResult(
+      hasBlock: true,
+      links: _dedupeLinks(links),
+    );
+  }
+
+  List<String> _extractLinkBlocks(String body) {
+    final lines = body.split(RegExp(r'\r?\n'));
+    final blocks = <String>[];
+    for (var i = 0; i < lines.length; i++) {
+      final line = lines[i].trim();
+      if (!line.startsWith('```')) {
+        if (_isCommentBlockStart(line)) {
+          final buffer = StringBuffer();
+          final endIndex = line.indexOf('-->');
+          if (endIndex != -1) {
+            final inner = line.substring(4, endIndex).trim();
+            final content = _stripCommentHeader(inner);
+            if (content.isNotEmpty) {
+              buffer.writeln(content);
+            }
+          } else {
+            i++;
+            for (; i < lines.length; i++) {
+              final end = lines[i].indexOf('-->');
+              if (end != -1) {
+                buffer.writeln(lines[i].substring(0, end));
+                break;
+              }
+              buffer.writeln(lines[i]);
+            }
+          }
+          final block = buffer.toString().trimRight();
+          if (block.isNotEmpty) {
+            blocks.add(block);
+          }
+        }
+        continue;
+      }
+      final language = line.substring(3).trim().toLowerCase();
+      if (language != 'links' && language != 'relations') {
+        continue;
+      }
+      final buffer = StringBuffer();
+      i++;
+      for (; i < lines.length; i++) {
+        if (lines[i].trim().startsWith('```')) {
+          break;
+        }
+        buffer.writeln(lines[i]);
+      }
+      blocks.add(buffer.toString().trimRight());
+    }
+    return blocks;
+  }
+
+  bool _isCommentBlockStart(String line) {
+    if (!line.startsWith('<!--')) {
+      return false;
+    }
+    final content = line.substring(4).trimLeft().toLowerCase();
+    return content.startsWith('links') || content.startsWith('relations');
+  }
+
+  String _stripCommentHeader(String content) {
+    final trimmed = content.trimLeft();
+    final lower = trimmed.toLowerCase();
+    if (lower.startsWith('links')) {
+      return trimmed.substring(5).replaceFirst(RegExp(r'^[:\\s]+'), '');
+    }
+    if (lower.startsWith('relations')) {
+      return trimmed.substring(9).replaceFirst(RegExp(r'^[:\\s]+'), '');
+    }
+    return trimmed;
+  }
+
+  List<FrontmatterLink> _parseLinksYaml(String yamlContent) {
+    final trimmed = yamlContent.trim();
+    if (trimmed.isEmpty) {
+      return const [];
+    }
+    try {
+      final parsed = loadYaml(trimmed);
+      final normalized = _convertYamlValue(parsed);
+      return _frontmatterLinksFromDynamic(normalized);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  List<FrontmatterLink> _frontmatterLinksFromDynamic(dynamic value) {
+    if (value is Map) {
+      if (value.containsKey('links')) {
+        return _frontmatterLinksFromDynamic(value['links']);
+      }
+      final toValue = value['to'];
+      if (toValue is String && toValue.trim().isNotEmpty) {
+        final type = value['type'];
+        final note = value['note'];
+        final fromBlock = _readBlockField(value, 'from', 'from_block') ??
+            _readBlockField(value, 'fromBlock');
+        final explicitToBlock = _readBlockField(value, 'to_block', 'toBlock') ??
+            _readBlockField(value, 'block');
+        final extractedToBlock = explicitToBlock ?? _extractAnchor(toValue);
+        final normalizedToBlock = extractedToBlock == null
+            ? null
+            : _normalizeBlockId(extractedToBlock);
+        final to = _stripAnchor(toValue).trim();
+        return [
+          FrontmatterLink(
+            to: to,
+            type: type is String && type.trim().isNotEmpty
+                ? type.trim()
+                : 'relates_to',
+            note: note is String ? note.trim() : null,
+            fromBlock: fromBlock == null ? null : _normalizeBlockId(fromBlock),
+            toBlock: normalizedToBlock,
+          ),
+        ];
+      }
+      return const [];
+    }
+    if (value is List) {
       final result = <FrontmatterLink>[];
-      for (final item in links) {
+      for (final item in value) {
+        if (item is String) {
+          final trimmed = item.trim();
+          if (trimmed.isNotEmpty) {
+            final toBlock = _extractAnchor(trimmed);
+            result.add(
+              FrontmatterLink(
+                to: _stripAnchor(trimmed).trim(),
+                type: 'relates_to',
+                toBlock: toBlock == null ? null : _normalizeBlockId(toBlock),
+              ),
+            );
+          }
+          continue;
+        }
         if (item is Map) {
-          final to = item['to'];
-          if (to is String && to.trim().isNotEmpty) {
+          final toValue = item['to'];
+          if (toValue is String && toValue.trim().isNotEmpty) {
             final type = item['type'];
             final note = item['note'];
+            final fromBlock = _readBlockField(item, 'from', 'from_block') ??
+                _readBlockField(item, 'fromBlock');
+            final explicitToBlock =
+                _readBlockField(item, 'to_block', 'toBlock') ??
+                    _readBlockField(item, 'block');
+            final extractedToBlock = explicitToBlock ?? _extractAnchor(toValue);
+            final normalizedToBlock = extractedToBlock == null
+                ? null
+                : _normalizeBlockId(extractedToBlock);
+            final to = _stripAnchor(toValue).trim();
             result.add(FrontmatterLink(
-              to: to.trim(),
+              to: to,
               type: type is String && type.trim().isNotEmpty
                   ? type.trim()
                   : 'relates_to',
               note: note is String ? note.trim() : null,
+              fromBlock:
+                  fromBlock == null ? null : _normalizeBlockId(fromBlock),
+              toBlock: normalizedToBlock,
             ));
           }
         }
       }
       return result;
     }
-    return <FrontmatterLink>[];
+    return const [];
+  }
+
+  List<FrontmatterLink> _dedupeLinks(List<FrontmatterLink> links) {
+    if (links.isEmpty) {
+      return links;
+    }
+    final seen = <String>{};
+    final deduped = <FrontmatterLink>[];
+    for (final link in links) {
+      final key = '${link.to}\u0000${link.type}\u0000${link.note ?? ''}\u0000'
+          '${link.fromBlock ?? ''}\u0000${link.toBlock ?? ''}';
+      if (seen.add(key)) {
+        deduped.add(link);
+      }
+    }
+    return deduped;
+  }
+
+  List<Map<String, dynamic>> _normalizeLinksForFrontmatter(
+    List<FrontmatterLink> links,
+  ) {
+    return links.map((link) {
+      final map = <String, dynamic>{
+        'to': link.to,
+        'type': link.type,
+      };
+      final note = link.note?.trim();
+      if (note != null && note.isNotEmpty) {
+        map['note'] = note;
+      }
+      final fromBlock = link.fromBlock?.trim();
+      if (fromBlock != null && fromBlock.isNotEmpty) {
+        map['from'] = fromBlock;
+      }
+      final toBlock = link.toBlock?.trim();
+      if (toBlock != null && toBlock.isNotEmpty) {
+        map['to_block'] = toBlock;
+      }
+      return map;
+    }).toList();
+  }
+
+  String? _readBlockField(
+    Map<dynamic, dynamic> map,
+    String key, [
+    String? fallbackKey,
+  ]) {
+    final direct = map[key];
+    if (direct is String && direct.trim().isNotEmpty) {
+      return direct.trim();
+    }
+    if (fallbackKey != null && fallbackKey.isNotEmpty) {
+      final fallback = map[fallbackKey];
+      if (fallback is String && fallback.trim().isNotEmpty) {
+        return fallback.trim();
+      }
+    }
+    return null;
+  }
+
+  String _normalizeBlockId(String block) {
+    final trimmed = block.trim();
+    if (trimmed.isEmpty) {
+      return '';
+    }
+    return trimmed.startsWith('^') ? trimmed : '^$trimmed';
+  }
+
+  String? _extractAnchor(String raw) {
+    final trimmed = raw.trim();
+    final index = trimmed.indexOf('#');
+    if (index == -1 || index == trimmed.length - 1) {
+      return null;
+    }
+    final anchor = trimmed.substring(index + 1).trim();
+    if (anchor.isEmpty) {
+      return null;
+    }
+    return anchor;
+  }
+
+  String _stripAnchor(String raw) {
+    final index = raw.indexOf('#');
+    if (index == -1) {
+      return raw;
+    }
+    return raw.substring(0, index);
   }
 
   Map<String, dynamic> _convertYaml(dynamic yamlMap) {
@@ -235,6 +500,16 @@ class NoteParser {
     }
     return value;
   }
+}
+
+class _EmbeddedLinksResult {
+  const _EmbeddedLinksResult({
+    required this.hasBlock,
+    required this.links,
+  });
+
+  final bool hasBlock;
+  final List<FrontmatterLink> links;
 }
 
 class _FrontmatterParseResult {

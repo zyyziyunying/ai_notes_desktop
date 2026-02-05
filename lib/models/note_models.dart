@@ -66,6 +66,8 @@ class NoteLink {
     required this.type,
     required this.source,
     required this.rawTarget,
+    this.fromBlock,
+    this.toBlock,
   });
 
   final String fromId;
@@ -73,6 +75,8 @@ class NoteLink {
   final String type;
   final String source;
   final String rawTarget;
+  final String? fromBlock;
+  final String? toBlock;
 }
 
 class FrontmatterLink {
@@ -80,9 +84,13 @@ class FrontmatterLink {
     required this.to,
     required this.type,
     this.note,
+    this.fromBlock,
+    this.toBlock,
   });
 
   final String to;
   final String type;
   final String? note;
+  final String? fromBlock;
+  final String? toBlock;
 }

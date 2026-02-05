@@ -63,6 +63,7 @@ class GraphPanel extends StatelessWidget {
           ),
         Expanded(
           child: InteractiveViewer(
+            constrained: false,
             minScale: 0.1,
             maxScale: 4,
             child: GraphView(

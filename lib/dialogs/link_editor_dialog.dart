@@ -13,11 +13,12 @@ Future<void> showLinkEditorDialog({
             to: link.to,
             type: link.type,
             note: link.note,
+            fromBlock: link.fromBlock,
+            toBlock: link.toBlock,
           ))
       .toList();
-  final controllers = workingLinks
-      .map((link) => TextEditingController(text: link.to))
-      .toList();
+  final controllers =
+      workingLinks.map((link) => TextEditingController(text: link.to)).toList();
   final notes = workingLinks
       .map((link) => TextEditingController(text: link.note ?? ''))
       .toList();
@@ -33,6 +34,8 @@ Future<void> showLinkEditorDialog({
         to: workingLinks[i].to,
         type: types.first,
         note: workingLinks[i].note,
+        fromBlock: workingLinks[i].fromBlock,
+        toBlock: workingLinks[i].toBlock,
       );
     }
   }
@@ -71,9 +74,10 @@ Future<void> showLinkEditorDialog({
                                 SizedBox(
                                   width: 160,
                                   child: DropdownButtonFormField<String>(
-                                    initialValue: types.contains(workingLinks[i].type)
-                                        ? workingLinks[i].type
-                                        : types.first,
+                                    initialValue:
+                                        types.contains(workingLinks[i].type)
+                                            ? workingLinks[i].type
+                                            : types.first,
                                     items: types
                                         .map(
                                           (type) => DropdownMenuItem(
@@ -90,6 +94,8 @@ Future<void> showLinkEditorDialog({
                                         to: workingLinks[i].to,
                                         type: value,
                                         note: workingLinks[i].note,
+                                        fromBlock: workingLinks[i].fromBlock,
+                                        toBlock: workingLinks[i].toBlock,
                                       );
                                       setState(() {});
                                     },
@@ -169,6 +175,8 @@ Future<void> showLinkEditorDialog({
                         to: target,
                         type: type,
                         note: note.isEmpty ? null : note,
+                        fromBlock: workingLinks[i].fromBlock,
+                        toBlock: workingLinks[i].toBlock,
                       ),
                     );
                   }

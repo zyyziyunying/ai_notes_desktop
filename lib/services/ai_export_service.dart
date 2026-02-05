@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as p;
@@ -50,6 +50,8 @@ class AIExportService {
                 'type': link.type,
                 'source': link.source,
                 'raw_target': link.rawTarget,
+                if (link.fromBlock != null) 'from_block': link.fromBlock,
+                if (link.toBlock != null) 'to_block': link.toBlock,
               })
           .toList(),
     };
@@ -67,6 +69,7 @@ class AIExportService {
         .writeAsString(const JsonEncoder.withIndent('  ').convert(vaultIndex));
     await File(p.join(aiDir.path, 'link_graph.json'))
         .writeAsString(const JsonEncoder.withIndent('  ').convert(linkGraph));
-    await File(p.join(aiDir.path, 'note_manifest.jsonl')).writeAsString(manifest);
+    await File(p.join(aiDir.path, 'note_manifest.jsonl'))
+        .writeAsString(manifest);
   }
 }

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -104,7 +104,8 @@ class VaultController extends ChangeNotifier {
     await _indexAll(selectPath: filePath);
   }
 
-  Future<void> saveCurrent({required String body, required String title}) async {
+  Future<void> saveCurrent(
+      {required String body, required String title}) async {
     final current = _current;
     if (current == null) {
       return;
@@ -126,6 +127,10 @@ class VaultController extends ChangeNotifier {
         .map((link) => {
               'to': link.to,
               'type': link.type,
+              if (link.fromBlock != null && link.fromBlock!.trim().isNotEmpty)
+                'from': link.fromBlock,
+              if (link.toBlock != null && link.toBlock!.trim().isNotEmpty)
+                'to_block': link.toBlock,
               if (link.note != null && link.note!.trim().isNotEmpty)
                 'note': link.note,
             })
@@ -168,10 +173,13 @@ class VaultController extends ChangeNotifier {
     if (_documents.isEmpty) {
       return;
     }
-    final normalized = target.trim().toLowerCase();
+    final trimmed = target.trim();
+    final base = trimmed.split('#').first.trim();
+    final normalized = base.toLowerCase();
+    final idCandidate = base.startsWith('id:') ? base.substring(3) : base;
     final doc = _documents.firstWhere(
       (item) =>
-          item.meta.id == target ||
+          item.meta.id == idCandidate ||
           item.meta.title.toLowerCase() == normalized ||
           p.basenameWithoutExtension(item.meta.path).toLowerCase() ==
               normalized,
@@ -255,6 +263,7 @@ class VaultController extends ChangeNotifier {
     for (final doc in docs) {
       final wikiTargets = LinkResolver.extractWikiTargets(doc.body);
       for (final target in wikiTargets) {
+        final toBlock = LinkResolver.extractAnchor(target);
         final toId = LinkResolver.resolveTarget(target, titleToId, pathToId);
         if (toId == null) {
           continue;
@@ -265,6 +274,7 @@ class VaultController extends ChangeNotifier {
           type: 'wikilink',
           source: 'body',
           rawTarget: target,
+          toBlock: toBlock,
         ));
       }
 
@@ -273,12 +283,16 @@ class VaultController extends ChangeNotifier {
         if (toId == null) {
           continue;
         }
+        final rawTarget =
+            link.toBlock == null ? link.to : '${link.to}#${link.toBlock}';
         links.add(NoteLink(
           fromId: doc.meta.id,
           toId: toId,
           type: link.type,
           source: 'frontmatter',
-          rawTarget: link.to,
+          rawTarget: rawTarget,
+          fromBlock: link.fromBlock,
+          toBlock: link.toBlock,
         ));
       }
     }
