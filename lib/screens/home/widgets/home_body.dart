@@ -4,7 +4,7 @@ import 'package:signals/signals_flutter.dart';
 import '../../../models/note_models.dart';
 import '../../../services/vault_controller.dart';
 import '../../../widgets/editor_panel.dart';
-import '../../../widgets/graph_panel.dart';
+import '../../../widgets/graph_panel/graph_panel.dart';
 import '../../../widgets/links_panel.dart';
 import '../../../widgets/notes_panel.dart';
 import '../../../widgets/preview_panel.dart';
