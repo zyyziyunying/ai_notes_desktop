@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:signals/signals.dart';
 
 import '../../models/note_models.dart';
+import '../../services/app_settings.dart';
 import '../../services/vault_controller.dart';
 import 'home_screen_state.dart';
 
@@ -28,6 +29,16 @@ mixin HomeScreenLogicMixin<T extends StatefulWidget> on State<T> {
       final current = controller.currentSignal.value;
       _onCurrentChanged(current);
     });
+    // 自动加载上次打开的笔记库
+    _loadLastVault();
+  }
+
+  /// 加载上次打开的笔记库
+  Future<void> _loadLastVault() async {
+    final lastPath = await AppSettings.instance.getLastVaultPath();
+    if (lastPath != null && Directory(lastPath).existsSync()) {
+      await controller.openVault(Directory(lastPath));
+    }
   }
 
   /// 清理业务逻辑资源
@@ -61,6 +72,7 @@ mixin HomeScreenLogicMixin<T extends StatefulWidget> on State<T> {
       return;
     }
     await controller.openVault(Directory(path));
+    await AppSettings.instance.setLastVaultPath(path);
   }
 
   /// 调度自动保存

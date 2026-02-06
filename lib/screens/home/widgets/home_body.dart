@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:signals/signals_flutter.dart';
 
 import '../../../models/note_models.dart';
 import '../../../services/vault_controller.dart';
@@ -38,37 +39,45 @@ class HomeBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        if (stateManager.showNotesPanel.value) ...[
-          _buildNotesPanel(),
-          ResizableDivider(
-            isLeft: true,
-            onDrag: stateManager.adjustNotesPanelWidth,
-          ),
+    return Watch((context) {
+      return Row(
+        children: [
+          if (stateManager.showNotesPanel.value) ...[
+            _buildNotesPanel(),
+            ResizableDivider(
+              isLeft: true,
+              onDrag: stateManager.adjustNotesPanelWidth,
+            ),
+          ],
+          if (stateManager.showEditorPanel.value) _buildEditorPanel(),
+          if (stateManager.showPreviewPanel.value) ...[
+            ResizableDivider(
+              isLeft: false,
+              onDrag: stateManager.adjustPreviewPanelWidth,
+            ),
+            _buildPreviewPanel(),
+          ],
         ],
-        if (stateManager.showEditorPanel.value) _buildEditorPanel(),
-        if (stateManager.showPreviewPanel.value) ...[
-          ResizableDivider(
-            isLeft: false,
-            onDrag: stateManager.adjustPreviewPanelWidth,
-          ),
-          _buildPreviewPanel(),
-        ],
-      ],
-    );
+      );
+    });
   }
 
   Widget _buildNotesPanel() {
+    final bool shouldExpand = !stateManager.showEditorPanel.value &&
+        !stateManager.showPreviewPanel.value;
+    final child = NotesPanel(
+      searchController: searchController,
+      notes: controller.notes,
+      currentId: current?.meta.id,
+      onSearch: controller.updateSearchQuery,
+      onSelect: controller.selectNoteById,
+    );
+    if (shouldExpand) {
+      return Expanded(child: child);
+    }
     return SizedBox(
       width: stateManager.notesPanelWidth.value,
-      child: NotesPanel(
-        searchController: searchController,
-        notes: controller.notes,
-        currentId: current?.meta.id,
-        onSearch: controller.updateSearchQuery,
-        onSelect: controller.selectNoteById,
-      ),
+      child: child,
     );
   }
 
@@ -85,27 +94,32 @@ class HomeBody extends StatelessWidget {
   }
 
   Widget _buildPreviewPanel() {
+    final bool shouldExpand = !stateManager.showEditorPanel.value;
+    final child = current == null
+        ? const Center(child: Text('预览区'))
+        : PreviewPanel(
+            renderedMarkdown: renderedMarkdown,
+            onTapLink: (text, href, title) => onTapLink(href),
+            linksPanel: LinksPanel(
+              current: current!,
+              outgoing: controller.outgoingLinksFor(current!.meta.id),
+              incoming: controller.incomingLinksFor(current!.meta.id),
+              onEdit: onEditLinks,
+              onSelectNote: controller.selectNoteById,
+              noteById: controller.noteById,
+            ),
+            graphPanel: GraphPanel(
+              notes: controller.allNotes,
+              links: controller.links,
+              onSelectNote: controller.selectNoteById,
+            ),
+          );
+    if (shouldExpand) {
+      return Expanded(child: child);
+    }
     return SizedBox(
       width: stateManager.previewPanelWidth.value,
-      child: current == null
-          ? const Center(child: Text('预览区'))
-          : PreviewPanel(
-              renderedMarkdown: renderedMarkdown,
-              onTapLink: (text, href, title) => onTapLink(href),
-              linksPanel: LinksPanel(
-                current: current!,
-                outgoing: controller.outgoingLinksFor(current!.meta.id),
-                incoming: controller.incomingLinksFor(current!.meta.id),
-                onEdit: onEditLinks,
-                onSelectNote: controller.selectNoteById,
-                noteById: controller.noteById,
-              ),
-              graphPanel: GraphPanel(
-                notes: controller.allNotes,
-                links: controller.links,
-                onSelectNote: controller.selectNoteById,
-              ),
-            ),
+      child: child,
     );
   }
 }

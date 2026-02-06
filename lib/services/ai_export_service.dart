@@ -17,59 +17,112 @@ class AIExportService {
     }
 
     final now = DateTime.now().toUtc().toIso8601String();
+    const schemaVersion = '1.1';
+    const generator = {'app': 'AI Notes Desktop', 'module': 'AIExportService'};
+    Map<String, dynamic> buildMeta(String kind) => {
+      'schema_version': schemaVersion,
+      'generated_at': now,
+      'machine_generated': true,
+      'generator': generator,
+      'kind': kind,
+    };
     final notes = docs
-        .map((doc) => {
-              'id': doc.meta.id,
-              'title': doc.meta.title,
-              'path': doc.meta.path,
-              'relative_path': p.relative(doc.meta.path, from: vault.path),
-              'tags': doc.meta.tags,
-              'updated_at': doc.meta.updatedAt.toIso8601String(),
-            })
+        .map(
+          (doc) => {
+            'id': doc.meta.id,
+            'title': doc.meta.title,
+            'path': doc.meta.path,
+            'relative_path': p.relative(doc.meta.path, from: vault.path),
+            'tags': doc.meta.tags,
+            'updated_at': doc.meta.updatedAt.toIso8601String(),
+          },
+        )
         .toList();
 
     final vaultIndex = {
+      'meta': buildMeta('vault_index'),
       'generated_at': now,
       'note_count': notes.length,
       'notes': notes,
     };
 
     final linkGraph = {
+      'meta': buildMeta('link_graph'),
       'generated_at': now,
+      'node_count': notes.length,
+      'edge_count': links.length,
       'nodes': notes
-          .map((note) => {
-                'id': note['id'],
-                'title': note['title'],
-                'path': note['relative_path'],
-              })
+          .map(
+            (note) => {
+              'id': note['id'],
+              'title': note['title'],
+              'path': note['relative_path'],
+            },
+          )
           .toList(),
       'edges': links
-          .map((link) => {
-                'from': link.fromId,
-                'to': link.toId,
-                'type': link.type,
-                'source': link.source,
-                'raw_target': link.rawTarget,
-                if (link.fromBlock != null) 'from_block': link.fromBlock,
-                if (link.toBlock != null) 'to_block': link.toBlock,
-              })
+          .map(
+            (link) => {
+              'from': link.fromId,
+              'to': link.toId,
+              'type': link.type,
+              'source': link.source,
+              'raw_target': link.rawTarget,
+              if (link.fromBlock != null) 'from_block': link.fromBlock,
+              if (link.toBlock != null) 'to_block': link.toBlock,
+            },
+          )
           .toList(),
     };
 
-    final manifest = docs.map((doc) {
-      return jsonEncode({
-        'id': doc.meta.id,
-        'title': doc.meta.title,
-        'path': p.relative(doc.meta.path, from: vault.path),
-        'tags': doc.meta.tags,
-      });
-    }).join('\n');
+    final manifest = docs
+        .map((doc) {
+          return jsonEncode({
+            'id': doc.meta.id,
+            'title': doc.meta.title,
+            'path': p.relative(doc.meta.path, from: vault.path),
+            'tags': doc.meta.tags,
+          });
+        })
+        .join('\n');
 
-    await File(p.join(aiDir.path, 'vault_index.json'))
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(vaultIndex));
-    await File(p.join(aiDir.path, 'link_graph.json'))
-        .writeAsString(const JsonEncoder.withIndent('  ').convert(linkGraph));
-    await File(p.join(aiDir.path, 'note_manifest.jsonl'))
-        .writeAsString(manifest);
+    final exportManifest = {
+      'meta': buildMeta('ai_export_manifest'),
+      'vault': {'note_count': notes.length},
+      'files': [
+        {
+          'name': 'vault_index.json',
+          'kind': 'vault_index',
+          'format': 'json',
+          'schema_version': schemaVersion,
+        },
+        {
+          'name': 'link_graph.json',
+          'kind': 'link_graph',
+          'format': 'json',
+          'schema_version': schemaVersion,
+        },
+        {
+          'name': 'note_manifest.jsonl',
+          'kind': 'note_manifest',
+          'format': 'jsonl',
+          'schema_version': schemaVersion,
+          'fields': ['id', 'title', 'path', 'tags'],
+        },
+      ],
+    };
+
+    await File(
+      p.join(aiDir.path, 'vault_index.json'),
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(vaultIndex));
+    await File(
+      p.join(aiDir.path, 'link_graph.json'),
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(linkGraph));
+    await File(
+      p.join(aiDir.path, 'note_manifest.jsonl'),
+    ).writeAsString(manifest);
+    await File(
+      p.join(aiDir.path, 'ai_export_manifest.json'),
+    ).writeAsString(const JsonEncoder.withIndent('  ').convert(exportManifest));
   }
 }
