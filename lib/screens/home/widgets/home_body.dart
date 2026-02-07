@@ -51,10 +51,11 @@ class HomeBody extends StatelessWidget {
           ],
           if (stateManager.showEditorPanel.value) _buildEditorPanel(),
           if (stateManager.showPreviewPanel.value) ...[
-            ResizableDivider(
-              isLeft: false,
-              onDrag: stateManager.adjustPreviewPanelWidth,
-            ),
+            if (stateManager.showEditorPanel.value)
+              ResizableDivider(
+                isLeft: false,
+                onDrag: stateManager.adjustPreviewPanelWidth,
+              ),
             _buildPreviewPanel(),
           ],
         ],
@@ -63,7 +64,8 @@ class HomeBody extends StatelessWidget {
   }
 
   Widget _buildNotesPanel() {
-    final bool shouldExpand = !stateManager.showEditorPanel.value &&
+    final bool shouldExpand =
+        !stateManager.showEditorPanel.value &&
         !stateManager.showPreviewPanel.value;
     final child = NotesPanel(
       searchController: searchController,
@@ -75,10 +77,7 @@ class HomeBody extends StatelessWidget {
     if (shouldExpand) {
       return Expanded(child: child);
     }
-    return SizedBox(
-      width: stateManager.notesPanelWidth.value,
-      child: child,
-    );
+    return SizedBox(width: stateManager.notesPanelWidth.value, child: child);
   }
 
   Widget _buildEditorPanel() {
@@ -117,9 +116,6 @@ class HomeBody extends StatelessWidget {
     if (shouldExpand) {
       return Expanded(child: child);
     }
-    return SizedBox(
-      width: stateManager.previewPanelWidth.value,
-      child: child,
-    );
+    return SizedBox(width: stateManager.previewPanelWidth.value, child: child);
   }
 }
