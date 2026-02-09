@@ -23,7 +23,8 @@ class TerminalService {
     if (Platform.isWindows) {
       await Process.start(
         'cmd.exe',
-        ['/c', 'start', 'cmd', '/k', 'cd /d "$path" && $command'],
+        ['/c', 'start', '""', 'cmd', '/k', command],
+        workingDirectory: path,
         mode: ProcessStartMode.detached,
       );
     } else if (Platform.isMacOS) {
