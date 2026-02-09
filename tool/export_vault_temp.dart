@@ -61,7 +61,7 @@ Future<void> main(List<String> args) async {
       ));
     }
 
-    for (final link in doc.frontmatterLinks) {
+    for (final link in doc.embeddedLinks) {
       final toId = LinkResolver.resolveTarget(link.to, titleToId, pathToId);
       if (toId == null) {
         continue;
@@ -70,8 +70,11 @@ Future<void> main(List<String> args) async {
         fromId: doc.meta.id,
         toId: toId,
         type: link.type,
-        source: 'frontmatter',
+        source: 'embedded',
         rawTarget: link.to,
+        fromAnchor: link.fromAnchor,
+        toAnchor: link.toAnchor,
+        summary: link.summary,
       ));
     }
   }

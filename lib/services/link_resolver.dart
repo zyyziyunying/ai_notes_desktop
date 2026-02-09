@@ -1,5 +1,3 @@
-import '../models/note_models.dart';
-
 class LinkResolver {
   static final RegExp _wikiLink = RegExp(r'\[\[([^\[\]]+)\]\]');
 
@@ -40,12 +38,9 @@ class LinkResolver {
     if (index == -1 || index == trimmed.length - 1) {
       return null;
     }
-    var anchor = trimmed.substring(index + 1).trim();
+    final anchor = trimmed.substring(index + 1).trim();
     if (anchor.isEmpty) {
       return null;
-    }
-    if (!anchor.startsWith('^')) {
-      anchor = '^$anchor';
     }
     return anchor;
   }
@@ -56,32 +51,5 @@ class LinkResolver {
       return raw;
     }
     return raw.substring(0, index);
-  }
-
-  static List<FrontmatterLink> extractFrontmatterLinks(
-    Map<String, dynamic> map,
-  ) {
-    final links = map['links'];
-    if (links is List) {
-      final result = <FrontmatterLink>[];
-      for (final item in links) {
-        if (item is Map) {
-          final to = item['to'];
-          if (to is String && to.trim().isNotEmpty) {
-            final type = item['type'];
-            final note = item['note'];
-            result.add(FrontmatterLink(
-              to: to.trim(),
-              type: type is String && type.trim().isNotEmpty
-                  ? type.trim()
-                  : 'relates_to',
-              note: note is String ? note.trim() : null,
-            ));
-          }
-        }
-      }
-      return result;
-    }
-    return <FrontmatterLink>[];
   }
 }

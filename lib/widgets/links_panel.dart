@@ -22,7 +22,7 @@ class LinksPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final frontmatterLinks = current.frontmatterLinks;
+    final embeddedLinks = current.embeddedLinks;
 
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -31,7 +31,7 @@ class LinksPanel extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Frontmatter 关系 (${frontmatterLinks.length})',
+              '笔记关系 (${embeddedLinks.length})',
               style: Theme.of(context).textTheme.titleSmall,
             ),
             TextButton.icon(
@@ -41,21 +41,21 @@ class LinksPanel extends StatelessWidget {
             ),
           ],
         ),
-        if (frontmatterLinks.isEmpty)
+        if (embeddedLinks.isEmpty)
           const Padding(
             padding: EdgeInsets.only(top: 8),
-            child: Text('暂无 Frontmatter 关系'),
+            child: Text('暂无笔记关系'),
           ),
-        ...frontmatterLinks.map((link) {
-          final blockInfo = _formatBlockInfo(
-            fromBlock: link.fromBlock,
-            toBlock: link.toBlock,
+        ...embeddedLinks.map((link) {
+          final anchorInfo = _formatAnchorInfo(
+            fromAnchor: link.fromAnchor,
+            toAnchor: link.toAnchor,
           );
           return ListTile(
             dense: true,
             title: Text(link.to),
             subtitle: Text(
-              blockInfo.isEmpty ? link.type : '${link.type} | $blockInfo',
+              anchorInfo.isEmpty ? link.type : '${link.type} | $anchorInfo',
             ),
           );
         }),
@@ -66,14 +66,14 @@ class LinksPanel extends StatelessWidget {
         if (outgoing.isEmpty) const Text('暂无出链'),
         ...outgoing.map((link) {
           final target = noteById(link.toId);
-          final blockInfo = _formatBlockInfo(toBlock: link.toBlock);
+          final anchorInfo = _formatAnchorInfo(toAnchor: link.toAnchor);
           return ListTile(
             dense: true,
             title: Text(target?.title ?? link.rawTarget),
             subtitle: Text(
-              blockInfo.isEmpty
+              anchorInfo.isEmpty
                   ? '${link.type} | ${link.source}'
-                  : '${link.type} | ${link.source} | $blockInfo',
+                  : '${link.type} | ${link.source} | $anchorInfo',
             ),
             onTap: target == null ? null : () => onSelectNote(link.toId),
           );
@@ -85,14 +85,14 @@ class LinksPanel extends StatelessWidget {
         if (incoming.isEmpty) const Text('暂无入链'),
         ...incoming.map((link) {
           final source = noteById(link.fromId);
-          final blockInfo = _formatBlockInfo(fromBlock: link.fromBlock);
+          final anchorInfo = _formatAnchorInfo(fromAnchor: link.fromAnchor);
           return ListTile(
             dense: true,
             title: Text(source?.title ?? link.rawTarget),
             subtitle: Text(
-              blockInfo.isEmpty
+              anchorInfo.isEmpty
                   ? '${link.type} | ${link.source}'
-                  : '${link.type} | ${link.source} | $blockInfo',
+                  : '${link.type} | ${link.source} | $anchorInfo',
             ),
             onTap: source == null ? null : () => onSelectNote(link.fromId),
           );
@@ -101,13 +101,13 @@ class LinksPanel extends StatelessWidget {
     );
   }
 
-  String _formatBlockInfo({String? fromBlock, String? toBlock}) {
+  String _formatAnchorInfo({String? fromAnchor, String? toAnchor}) {
     final parts = <String>[];
-    if (fromBlock != null && fromBlock.trim().isNotEmpty) {
-      parts.add('from $fromBlock');
+    if (fromAnchor != null && fromAnchor.trim().isNotEmpty) {
+      parts.add('§$fromAnchor');
     }
-    if (toBlock != null && toBlock.trim().isNotEmpty) {
-      parts.add('to $toBlock');
+    if (toAnchor != null && toAnchor.trim().isNotEmpty) {
+      parts.add('→ §$toAnchor');
     }
     return parts.join(' ');
   }

@@ -16,7 +16,7 @@ mixin HomeScreenDialogMixin<T extends StatefulWidget> on State<T> {
       context: context,
       current: current,
       relationTypes: controller.relationTypes,
-      onSave: controller.updateFrontmatterLinks,
+      onSave: controller.updateEmbeddedLinks,
     );
   }
 

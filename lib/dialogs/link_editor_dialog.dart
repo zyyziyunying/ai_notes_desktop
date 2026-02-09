@@ -6,21 +6,21 @@ Future<void> showLinkEditorDialog({
   required BuildContext context,
   required NoteDocument current,
   required List<String> relationTypes,
-  required Future<void> Function(List<FrontmatterLink>) onSave,
+  required Future<void> Function(List<EmbeddedLink>) onSave,
 }) async {
-  final workingLinks = current.frontmatterLinks
-      .map((link) => FrontmatterLink(
+  final workingLinks = current.embeddedLinks
+      .map((link) => EmbeddedLink(
             to: link.to,
             type: link.type,
-            note: link.note,
-            fromBlock: link.fromBlock,
-            toBlock: link.toBlock,
+            summary: link.summary,
+            fromAnchor: link.fromAnchor,
+            toAnchor: link.toAnchor,
           ))
       .toList();
   final controllers =
       workingLinks.map((link) => TextEditingController(text: link.to)).toList();
-  final notes = workingLinks
-      .map((link) => TextEditingController(text: link.note ?? ''))
+  final summaries = workingLinks
+      .map((link) => TextEditingController(text: link.summary ?? ''))
       .toList();
 
   final typeSet = <String>{
@@ -30,12 +30,12 @@ Future<void> showLinkEditorDialog({
   final types = typeSet.isEmpty ? <String>['relates_to'] : typeSet.toList();
   for (var i = 0; i < workingLinks.length; i++) {
     if (!types.contains(workingLinks[i].type)) {
-      workingLinks[i] = FrontmatterLink(
+      workingLinks[i] = EmbeddedLink(
         to: workingLinks[i].to,
         type: types.first,
-        note: workingLinks[i].note,
-        fromBlock: workingLinks[i].fromBlock,
-        toBlock: workingLinks[i].toBlock,
+        summary: workingLinks[i].summary,
+        fromAnchor: workingLinks[i].fromAnchor,
+        toAnchor: workingLinks[i].toAnchor,
       );
     }
   }
@@ -46,7 +46,7 @@ Future<void> showLinkEditorDialog({
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('编辑 Frontmatter 关系'),
+            title: const Text('编辑笔记关系'),
             content: SizedBox(
               width: 520,
               child: SingleChildScrollView(
@@ -90,12 +90,12 @@ Future<void> showLinkEditorDialog({
                                       if (value == null) {
                                         return;
                                       }
-                                      workingLinks[i] = FrontmatterLink(
+                                      workingLinks[i] = EmbeddedLink(
                                         to: workingLinks[i].to,
                                         type: value,
-                                        note: workingLinks[i].note,
-                                        fromBlock: workingLinks[i].fromBlock,
-                                        toBlock: workingLinks[i].toBlock,
+                                        summary: workingLinks[i].summary,
+                                        fromAnchor: workingLinks[i].fromAnchor,
+                                        toAnchor: workingLinks[i].toAnchor,
                                       );
                                       setState(() {});
                                     },
@@ -109,7 +109,7 @@ Future<void> showLinkEditorDialog({
                                 IconButton(
                                   onPressed: () {
                                     controllers.removeAt(i).dispose();
-                                    notes.removeAt(i).dispose();
+                                    summaries.removeAt(i).dispose();
                                     workingLinks.removeAt(i);
                                     setState(() {});
                                   },
@@ -119,7 +119,7 @@ Future<void> showLinkEditorDialog({
                             ),
                             const SizedBox(height: 8),
                             TextField(
-                              controller: notes[i],
+                              controller: summaries[i],
                               decoration: const InputDecoration(
                                 labelText: '备注（可选）',
                                 border: OutlineInputBorder(),
@@ -136,10 +136,10 @@ Future<void> showLinkEditorDialog({
                           final defaultType =
                               types.isNotEmpty ? types.first : 'relates_to';
                           workingLinks.add(
-                            FrontmatterLink(to: '', type: defaultType),
+                            EmbeddedLink(to: '', type: defaultType),
                           );
                           controllers.add(TextEditingController());
-                          notes.add(TextEditingController());
+                          summaries.add(TextEditingController());
                           setState(() {});
                         },
                         icon: const Icon(Icons.add),
@@ -162,21 +162,21 @@ Future<void> showLinkEditorDialog({
               ),
               FilledButton(
                 onPressed: () async {
-                  final updated = <FrontmatterLink>[];
+                  final updated = <EmbeddedLink>[];
                   for (var i = 0; i < workingLinks.length; i++) {
                     final target = controllers[i].text.trim();
                     if (target.isEmpty) {
                       continue;
                     }
                     final type = workingLinks[i].type;
-                    final note = notes[i].text.trim();
+                    final summary = summaries[i].text.trim();
                     updated.add(
-                      FrontmatterLink(
+                      EmbeddedLink(
                         to: target,
                         type: type,
-                        note: note.isEmpty ? null : note,
-                        fromBlock: workingLinks[i].fromBlock,
-                        toBlock: workingLinks[i].toBlock,
+                        summary: summary.isEmpty ? null : summary,
+                        fromAnchor: workingLinks[i].fromAnchor,
+                        toAnchor: workingLinks[i].toAnchor,
                       ),
                     );
                   }
@@ -197,7 +197,7 @@ Future<void> showLinkEditorDialog({
   for (final controller in controllers) {
     controller.dispose();
   }
-  for (final controller in notes) {
+  for (final controller in summaries) {
     controller.dispose();
   }
 }

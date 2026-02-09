@@ -17,7 +17,6 @@ mixin VaultNoteCrudMixin on VaultState {
       'id': _uuid.v4(),
       'title': baseName,
       'tags': <String>[],
-      'links': <Map<String, dynamic>>[],
     };
     final content = parser.buildNoteContent(frontmatter, '');
     File(filePath).writeAsStringSync(content);

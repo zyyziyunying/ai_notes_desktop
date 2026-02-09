@@ -50,13 +50,13 @@ class NoteDocument {
     required this.meta,
     required this.body,
     required this.frontmatter,
-    required this.frontmatterLinks,
+    required this.embeddedLinks,
   });
 
   final NoteMeta meta;
   final String body;
   final Map<String, dynamic> frontmatter;
-  final List<FrontmatterLink> frontmatterLinks;
+  final List<EmbeddedLink> embeddedLinks;
 }
 
 class NoteLink {
@@ -66,8 +66,9 @@ class NoteLink {
     required this.type,
     required this.source,
     required this.rawTarget,
-    this.fromBlock,
-    this.toBlock,
+    this.fromAnchor,
+    this.toAnchor,
+    this.summary,
   });
 
   final String fromId;
@@ -75,22 +76,23 @@ class NoteLink {
   final String type;
   final String source;
   final String rawTarget;
-  final String? fromBlock;
-  final String? toBlock;
+  final String? fromAnchor;
+  final String? toAnchor;
+  final String? summary;
 }
 
-class FrontmatterLink {
-  FrontmatterLink({
+class EmbeddedLink {
+  EmbeddedLink({
     required this.to,
     required this.type,
-    this.note,
-    this.fromBlock,
-    this.toBlock,
+    this.summary,
+    this.fromAnchor,
+    this.toAnchor,
   });
 
   final String to;
   final String type;
-  final String? note;
-  final String? fromBlock;
-  final String? toBlock;
+  final String? summary;
+  final String? fromAnchor;
+  final String? toAnchor;
 }

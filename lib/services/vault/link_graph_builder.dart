@@ -14,7 +14,7 @@ class LinkGraph {
   final Map<String, List<NoteLink>> backlinks;
 }
 
-/// 从文档列表中构建完整的链接图（wikilink + frontmatter link + backlink）。
+/// 从文档列表中构建完整的链接图（wikilink + embedded link + backlink）。
 class LinkGraphBuilder {
   const LinkGraphBuilder();
 
@@ -32,7 +32,7 @@ class LinkGraphBuilder {
 
     for (final doc in docs) {
       _extractWikiLinks(doc, titleToId, pathToId, links);
-      _extractFrontmatterLinks(doc, titleToId, pathToId, links);
+      _extractEmbeddedLinks(doc, titleToId, pathToId, links);
     }
 
     final backlinks = <String, List<NoteLink>>{};
@@ -51,7 +51,7 @@ class LinkGraphBuilder {
   ) {
     final targets = LinkResolver.extractWikiTargets(doc.body);
     for (final target in targets) {
-      final toBlock = LinkResolver.extractAnchor(target);
+      final toAnchor = LinkResolver.extractAnchor(target);
       final toId = LinkResolver.resolveTarget(target, titleToId, pathToId);
       if (toId == null) continue;
       out.add(NoteLink(
@@ -60,30 +60,31 @@ class LinkGraphBuilder {
         type: 'wikilink',
         source: 'body',
         rawTarget: target,
-        toBlock: toBlock,
+        toAnchor: toAnchor,
       ));
     }
   }
 
-  void _extractFrontmatterLinks(
+  void _extractEmbeddedLinks(
     NoteDocument doc,
     Map<String, String> titleToId,
     Map<String, String> pathToId,
     List<NoteLink> out,
   ) {
-    for (final link in doc.frontmatterLinks) {
+    for (final link in doc.embeddedLinks) {
       final toId = LinkResolver.resolveTarget(link.to, titleToId, pathToId);
       if (toId == null) continue;
       final rawTarget =
-          link.toBlock == null ? link.to : '${link.to}#${link.toBlock}';
+          link.toAnchor == null ? link.to : '${link.to}#${link.toAnchor}';
       out.add(NoteLink(
         fromId: doc.meta.id,
         toId: toId,
         type: link.type,
-        source: 'frontmatter',
+        source: 'embedded',
         rawTarget: rawTarget,
-        fromBlock: link.fromBlock,
-        toBlock: link.toBlock,
+        fromAnchor: link.fromAnchor,
+        toAnchor: link.toAnchor,
+        summary: link.summary,
       ));
     }
   }

@@ -16,23 +16,14 @@ mixin VaultLinkMixin on VaultState {
     return backlinksS.value[noteId] ?? const [];
   }
 
-  Future<void> updateFrontmatterLinks(List<FrontmatterLink> links) async {
+  Future<void> updateEmbeddedLinks(List<EmbeddedLink> links) async {
     final current = currentS.value;
     if (current == null) return;
     final frontmatter = Map<String, dynamic>.from(current.frontmatter);
-    frontmatter['links'] = links
-        .map((link) => {
-              'to': link.to,
-              'type': link.type,
-              if (link.fromBlock != null && link.fromBlock!.trim().isNotEmpty)
-                'from': link.fromBlock,
-              if (link.toBlock != null && link.toBlock!.trim().isNotEmpty)
-                'to_block': link.toBlock,
-              if (link.note != null && link.note!.trim().isNotEmpty)
-                'note': link.note,
-            })
-        .toList();
-    final content = parser.buildNoteContent(frontmatter, current.body);
+    frontmatter.remove('links');
+    final newBlock = parser.buildArrowLinksBlock(links);
+    final newBody = parser.replaceLinksBlock(current.body, newBlock);
+    final content = parser.buildNoteContent(frontmatter, newBody);
     File(current.meta.path).writeAsStringSync(content);
     await indexAll(selectPath: current.meta.path);
   }
