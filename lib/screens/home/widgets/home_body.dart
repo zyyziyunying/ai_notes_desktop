@@ -73,6 +73,8 @@ class HomeBody extends StatelessWidget {
       currentId: current?.meta.id,
       onSearch: controller.updateSearchQuery,
       onSelect: controller.selectNoteById,
+      onDelete: controller.deleteNote,
+      onRename: controller.renameNote,
     );
     if (shouldExpand) {
       return Expanded(child: child);
