@@ -17,7 +17,7 @@ class AIExportService {
     }
 
     final now = DateTime.now().toUtc().toIso8601String();
-    const schemaVersion = '1.1';
+    const schemaVersion = '2.0';
     const generator = {'app': 'AI Notes Desktop', 'module': 'AIExportService'};
     Map<String, dynamic> buildMeta(String kind) => {
       'schema_version': schemaVersion,
@@ -67,9 +67,9 @@ class AIExportService {
               'to': link.toId,
               'type': link.type,
               'source': link.source,
-              'raw_target': link.rawTarget,
-              if (link.fromBlock != null) 'from_block': link.fromBlock,
-              if (link.toBlock != null) 'to_block': link.toBlock,
+              if (link.fromAnchor != null) 'from_anchor': link.fromAnchor,
+              if (link.toAnchor != null) 'to_anchor': link.toAnchor,
+              if (link.summary != null) 'summary': link.summary,
             },
           )
           .toList(),

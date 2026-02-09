@@ -60,7 +60,7 @@ class IndexService {
     }
     db.execute('DELETE FROM links');
     final insertLink = db.prepare(
-      'INSERT INTO links (from_id, to_id, type, source, raw_target) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO links (from_id, to_id, type, source, raw_target, from_anchor, to_anchor, summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
     );
     for (final link in links) {
       insertLink.execute([
@@ -69,6 +69,9 @@ class IndexService {
         link.type,
         link.source,
         link.rawTarget,
+        link.fromAnchor,
+        link.toAnchor,
+        link.summary,
       ]);
     }
     insertLink.close();
@@ -112,13 +115,17 @@ class IndexService {
       CREATE VIRTUAL TABLE IF NOT EXISTS fts_notes
       USING fts5(id, title, body)
     ''');
+    db.execute('DROP TABLE IF EXISTS links');
     db.execute('''
-      CREATE TABLE IF NOT EXISTS links (
+      CREATE TABLE links (
         from_id TEXT NOT NULL,
         to_id TEXT NOT NULL,
         type TEXT NOT NULL,
         source TEXT NOT NULL,
-        raw_target TEXT NOT NULL
+        raw_target TEXT NOT NULL,
+        from_anchor TEXT,
+        to_anchor TEXT,
+        summary TEXT
       )
     ''');
   }
