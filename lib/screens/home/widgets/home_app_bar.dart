@@ -158,7 +158,7 @@ class HomeAppBar extends StatelessWidget implements PreferredSizeWidget {
 }
 
 /// PopupMenuButton 包装，实现与 AppBarIconButton 一致的 hover 效果
-class _HoverPopupMenuButton<T> extends StatefulWidget {
+class _HoverPopupMenuButton<T> extends StatelessWidget {
   final IconData icon;
   final String tooltip;
   final bool enabled;
@@ -176,47 +176,33 @@ class _HoverPopupMenuButton<T> extends StatefulWidget {
   });
 
   @override
-  State<_HoverPopupMenuButton<T>> createState() =>
-      _HoverPopupMenuButtonState<T>();
-}
-
-class _HoverPopupMenuButtonState<T> extends State<_HoverPopupMenuButton<T>> {
-  bool _hovering = false;
-
-  @override
   Widget build(BuildContext context) {
     final iconColor = Theme.of(context).colorScheme.onSurface;
 
-    return MouseRegion(
-      onEnter: widget.enabled ? (_) => setState(() => _hovering = true) : null,
-      onExit: widget.enabled ? (_) => setState(() => _hovering = false) : null,
-      cursor:
-          widget.enabled ? SystemMouseCursors.click : SystemMouseCursors.basic,
-      child: Tooltip(
-        message: widget.tooltip,
-        preferBelow: true,
-        waitDuration: const Duration(milliseconds: 500),
-        child: PopupMenuButton<T>(
-          enabled: widget.enabled,
-          onSelected: widget.onSelected,
-          itemBuilder: widget.itemBuilder,
-          tooltip: '',
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 150),
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: _hovering && widget.enabled
-                  ? widget.hoverColor
-                  : Colors.transparent,
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              widget.icon,
-              size: 20,
-              color: widget.enabled
-                  ? iconColor
-                  : iconColor.withValues(alpha: 0.38),
-            ),
+    return Tooltip(
+      message: tooltip,
+      preferBelow: true,
+      waitDuration: const Duration(milliseconds: 500),
+      child: PopupMenuButton<T>(
+        enabled: enabled,
+        onSelected: onSelected,
+        itemBuilder: itemBuilder,
+        tooltip: '',
+        style: IconButton.styleFrom(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6),
+          ),
+          hoverColor: hoverColor,
+          highlightColor: hoverColor,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(
+            icon,
+            size: 20,
+            color: enabled
+                ? iconColor
+                : iconColor.withValues(alpha: 0.38),
           ),
         ),
       ),
