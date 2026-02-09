@@ -2,6 +2,55 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:markdown/markdown.dart' as md;
+
+/// 内联语法：匹配 block-tag 自定义标记
+class _BlockTagSyntax extends md.InlineSyntax {
+  _BlockTagSyntax() : super(r'<block-tag>([^<]+)</block-tag>');
+
+  @override
+  bool onMatch(md.InlineParser parser, Match match) {
+    final blockId = match.group(1) ?? '';
+    final element = md.Element.text('block-tag', blockId);
+    parser.addNode(element);
+    return true;
+  }
+}
+
+/// 自定义 Builder：将 block-tag 渲染为小徽章
+class _BlockTagBuilder extends MarkdownElementBuilder {
+  @override
+  Widget? visitElementAfterWithContext(
+    BuildContext context,
+    md.Element element,
+    TextStyle? preferredStyle,
+    TextStyle? parentStyle,
+  ) {
+    final blockId = element.textContent;
+    final colorScheme = Theme.of(context).colorScheme;
+    return Container(
+      margin: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.3),
+          width: 1,
+        ),
+      ),
+      child: Text(
+        '§$blockId',
+        style: TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w500,
+          color: colorScheme.onPrimaryContainer,
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+}
 
 class PreviewPanel extends StatelessWidget {
   const PreviewPanel({
@@ -136,6 +185,8 @@ class PreviewPanel extends StatelessWidget {
                 onTapLink: onTapLink,
                 styleSheet: _buildMarkdownStyle(context),
                 padding: const EdgeInsets.all(16),
+                inlineSyntaxes: [_BlockTagSyntax()],
+                builders: {'block-tag': _BlockTagBuilder()},
               ),
               linksPanel,
               graphPanel,

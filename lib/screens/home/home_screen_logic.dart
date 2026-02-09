@@ -90,9 +90,22 @@ mixin HomeScreenLogicMixin<T extends StatefulWidget> on State<T> {
     });
   }
 
-  /// 渲染 Markdown（处理 wikilink）
+  /// 渲染 Markdown（处理 wikilink、block 标注、隐藏 links 注释块）
   String renderMarkdown(String body) {
-    return body.replaceAllMapped(RegExp(r'\[\[([^\[\]]+)\]\]'), (match) {
+    // 1. 移除多行 <!-- links ... --> 和 <!-- relations ... --> 注释块
+    var result = body.replaceAll(
+      RegExp(r'<!--\s*(?:links|relations)\b.*?-->', dotAll: true),
+      '',
+    );
+
+    // 2. 将 <!-- §xxx --> 转换为自定义标记
+    result = result.replaceAllMapped(
+      RegExp(r'<!--\s*§(\S+)\s*-->'),
+      (match) => '<block-tag>${match.group(1)}</block-tag>',
+    );
+
+    // 3. 处理 wikilink
+    result = result.replaceAllMapped(RegExp(r'\[\[([^\[\]]+)\]\]'), (match) {
       final raw = match.group(1) ?? '';
       final parts = raw.split('|');
       final target = parts.first.trim();
@@ -100,6 +113,8 @@ mixin HomeScreenLogicMixin<T extends StatefulWidget> on State<T> {
       final encoded = Uri.encodeComponent(target);
       return '[$label](note://$encoded)';
     });
+
+    return result;
   }
 
   /// 处理笔记链接点击
