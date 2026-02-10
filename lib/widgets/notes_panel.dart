@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import '../models/note_models.dart';
@@ -65,11 +67,7 @@ class NotesPanel extends StatelessWidget {
     );
   }
 
-  void _showContextMenu(
-    BuildContext context,
-    Offset position,
-    NoteMeta note,
-  ) {
+  void _showContextMenu(BuildContext context, Offset position, NoteMeta note) {
     showMenu<String>(
       context: context,
       position: RelativeRect.fromLTRB(
@@ -80,6 +78,7 @@ class NotesPanel extends StatelessWidget {
       ),
       items: const [
         PopupMenuItem(value: 'rename', child: Text('重命名')),
+        PopupMenuItem(value: 'reveal', child: Text('在文件资源管理器中显示')),
         PopupMenuItem(value: 'delete', child: Text('删除')),
       ],
     ).then((value) {
@@ -88,6 +87,8 @@ class NotesPanel extends StatelessWidget {
         _confirmDelete(context, note);
       } else if (value == 'rename') {
         _showRenameDialog(context, note);
+      } else if (value == 'reveal') {
+        _revealInExplorer(note);
       }
     });
   }
@@ -147,6 +148,17 @@ class NotesPanel extends StatelessWidget {
         newTitle.trim().isNotEmpty &&
         newTitle != note.title) {
       await onRename(note.id, newTitle);
+    }
+  }
+
+  void _revealInExplorer(NoteMeta note) {
+    final path = note.path;
+    if (Platform.isWindows) {
+      Process.run('explorer', ['/select,', path]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', ['-R', path]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [File(path).parent.path]);
     }
   }
 }
